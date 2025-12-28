@@ -1,0 +1,58 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+*.log
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Cloudflare Tunnel
+cloudflared
+cloudflared.exe
+.cloudflared/
+
+# Python / Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+backend/venv/
+backend/.venv/
+backend/instance/
+*.db
+*.sqlite3
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Flask
+instance/
+.webassets-cache
+
+# Node / Frontend
+node_modules/
+dist/
+dist-ssr/
+build/
+.npm
+.yarn
+frontend/node_modules/
+frontend/dist/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Uploads (Ignore images but keep the folder)
+backend/app/static/uploads/*
+!backend/app/static/uploads/.gitkeep
