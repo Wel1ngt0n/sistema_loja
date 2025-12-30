@@ -42,7 +42,7 @@ class PreOrderItem(db.Model):
             'product': {
                 'id': self.product.id,
                 'name': self.product.name,
-                'unit': self.product.unit,
+                'unit': self.product.unit.value,
                 'price': float(self.product.price)
             } if self.product else None
         }

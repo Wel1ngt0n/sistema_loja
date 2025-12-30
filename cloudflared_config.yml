@@ -1,0 +1,7 @@
+tunnel: b760e97a-3a9e-42c0-8da9-920683efcdc8
+credentials-file: C:\Users\welin\.cloudflared\b760e97a-3a9e-42c0-8da9-920683efcdc8.json
+
+ingress:
+  - hostname: comanda360.online
+    service: http://localhost:80
+  - service: http_status:404

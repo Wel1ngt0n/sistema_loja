@@ -201,8 +201,8 @@ const ProductList: React.FC = () => {
                 </Box>
             </Box>
 
-            <TableContainer component={Paper}>
-                <Table>
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                <Table sx={{ minWidth: 650 }}>
                     <TableHead>
                         <TableRow>
                             <TableCell>Nome</TableCell>
@@ -220,8 +220,10 @@ const ProductList: React.FC = () => {
                                 <TableCell>{row.unit}</TableCell>
                                 <TableCell>{row.controls_stock ? row.stock_qty : '-'}</TableCell>
                                 <TableCell align="right">
-                                    <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
-                                    <IconButton color="error" onClick={() => handleDelete(row.id)}><DeleteIcon /></IconButton>
+                                    <Box display="flex" justifyContent="flex-end">
+                                        <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
+                                        <IconButton color="error" onClick={() => handleDelete(row.id)}><DeleteIcon /></IconButton>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -232,7 +234,7 @@ const ProductList: React.FC = () => {
             <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>{editing ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
                 <DialogContent>
-                    <Box display="grid" gridTemplateColumns="1fr 1fr" gap={2} mt={1}>
+                    <Box display="grid" gridTemplateColumns={{ xs: '1fr', sm: '1fr 1fr' }} gap={2} mt={1}>
                         <TextField label="Nome" fullWidth value={formData.name} onChange={e => handleChange('name', e.target.value)} />
                         <TextField label="Código de Barras" fullWidth value={formData.barcode} onChange={e => handleChange('barcode', e.target.value)} />
 

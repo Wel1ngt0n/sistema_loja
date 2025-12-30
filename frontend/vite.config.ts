@@ -1,20 +1,29 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    watch: {
-      usePolling: true, // Necessário para Docker no Windows em alguns casos
-    },
-    proxy: {
-      '/api': {
-        target: 'http://backend:5000',
-        changeOrigin: true,
-        secure: false,
+export default defineConfig(({ mode }) => {
+  // Carrega variáveis de ambiente (se existirem)
+  const env = loadEnv(mode, process.cwd(), '')
+
+  // Define o alvo da API: Se estiver no Docker (definido via env), usa 'backend', senão localhost
+  const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:5000'
+
+  return {
+    plugins: [react()],
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      allowedHosts: true, // Necessário para acesso via túneis (ngrok/cloudflare)
+      watch: {
+        usePolling: true, // Melhora compatibilidade com Docker no Windows
+      },
+      proxy: {
+        '/api': {
+          target: apiTarget,
+          changeOrigin: true,
+          secure: false,
+        }
       }
     }
   }

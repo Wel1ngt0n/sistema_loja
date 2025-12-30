@@ -57,7 +57,7 @@ def create_preorder():
     try:
         # Validate critical fields
         if not data.get('customer_name') or not data.get('customer_phone') or not data.get('pickup_datetime'):
-            return jsonify({'message': 'Missing required fields'}), 400
+            return jsonify({'message': 'Campos obrigatórios faltando (nome, telefone ou data)'}), 400
             
         pickup_dt = datetime.datetime.fromisoformat(data['pickup_datetime'].replace('Z', '+00:00'))
         
@@ -66,20 +66,38 @@ def create_preorder():
             customer_phone=data['customer_phone'],
             pickup_datetime=pickup_dt,
             notes=data.get('notes', ''),
-            status='DRAFT', # Explicitly starting as DRAFT or CONFIRMED depending on logic?
+            status='DRAFT', 
             payment_preference=data.get('payment_preference'),
             paid_amount=data.get('paid_amount', 0),
-            estimated_total=0 # Will calc below
+            estimated_total=0 
         )
         
         total_estimate = 0
         items_data = data.get('items', [])
         
+        # Need to fetch products to ensure prices if not sent by frontend
+        # Optimziation: fetch all involved product ids
+        product_ids = [i.get('product_id') for i in items_data if i.get('product_id')]
+        from app.models.product import Product
+        existing_products = {p.id: p for p in Product.query.filter(Product.id.in_(product_ids)).all()}
+
         for item in items_data:
+            pid = item.get('product_id')
+            if pid not in existing_products:
+                continue # Or raise error
+                
+            product = existing_products[pid]
+
             # item needs: product_id, unit_price, qty OR weight
+            # FIX: If frontend doesn't send unit_price, take from product
             unit_price = float(item.get('unit_price', 0))
+            if unit_price == 0:
+                unit_price = float(product.price)
+
             price_kg = float(item.get('price_per_kg', 0)) if item.get('price_per_kg') else None
-            
+            if price_kg is None and product.unit in ['KG', 'G', 'L', 'ML']:
+                 price_kg = float(product.price)
+
             qty = item.get('qty', 1)
             desired_weight = item.get('desired_weight_kg')
             
@@ -95,7 +113,7 @@ def create_preorder():
             total_estimate += line_total
             
             new_item = PreOrderItem(
-                product_id=item['product_id'],
+                product_id=pid,
                 qty=qty,
                 desired_weight_kg=desired_weight,
                 unit_price_snapshot=unit_price,
@@ -113,8 +131,94 @@ def create_preorder():
         return jsonify(new_order.to_dict()), 201
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
-        return jsonify({'message': 'Error creating preorder', 'error': str(e)}), 500
+        return jsonify({'message': 'Erro ao criar encomenda', 'error': str(e)}), 500
+
+@pre_order_bp.route('/<int:id>', methods=['PUT'])
+@require_auth
+@require_permission('preorders:write')
+def update_preorder(id):
+    order = PreOrder.query.get_or_404(id)
+    data = request.get_json()
+    
+    # Only allow editing if not passed critical status
+    if order.status not in ['DRAFT', 'CONFIRMED']:
+        return jsonify({'message': 'Não é possível editar encomenda neste status'}), 400
+
+    try:
+        if 'customer_name' in data:
+            order.customer_name = data['customer_name']
+        if 'customer_phone' in data:
+            order.customer_phone = data['customer_phone']
+        if 'notes' in data:
+            order.notes = data['notes']
+        if 'pickup_datetime' in data:
+            order.pickup_datetime = datetime.datetime.fromisoformat(data['pickup_datetime'].replace('Z', '+00:00'))
+            
+        # Update items: Full Replace Strategy
+        if 'items' in data:
+            # Clear existing items
+            # PreOrderItem must have cascade delete? Or manual delete
+            PreOrderItem.query.filter_by(preorder_id=order.id).delete()
+            
+            total_estimate = 0
+            items_data = data.get('items', [])
+            
+            # Fetch products for price references
+            product_ids = [i.get('product_id') for i in items_data if i.get('product_id')]
+            from app.models.product import Product
+            existing_products = {p.id: p for p in Product.query.filter(Product.id.in_(product_ids)).all()}
+
+            for item in items_data:
+                pid = item.get('product_id')
+                if pid not in existing_products:
+                    continue 
+                    
+                product = existing_products[pid]
+
+                unit_price = float(item.get('unit_price', 0))
+                if unit_price == 0:
+                    unit_price = float(product.price)
+
+                price_kg = float(item.get('price_per_kg', 0)) if item.get('price_per_kg') else None
+                if price_kg is None and product.unit.name in ['KG', 'G', 'L', 'ML']:
+                     price_kg = float(product.price)
+
+                qty = item.get('qty', 1)
+                desired_weight = item.get('desired_weight_kg')
+                
+                line_total = 0
+                if desired_weight and price_kg:
+                    line_total = float(desired_weight) * price_kg
+                else:
+                    line_total = qty * unit_price
+                    
+                total_estimate += line_total
+                
+                new_item = PreOrderItem(
+                    preorder_id=order.id, # Link explicitly
+                    product_id=pid,
+                    qty=qty,
+                    desired_weight_kg=desired_weight,
+                    unit_price_snapshot=unit_price,
+                    price_per_kg_snapshot=price_kg,
+                    estimated_line_total=line_total,
+                    notes=item.get('notes')
+                )
+                db.session.add(new_item)
+                
+            order.estimated_total = total_estimate
+
+        db.session.commit()
+        return jsonify(order.to_dict())
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'message': 'Erro ao atualizar encomenda', 'error': str(e)}), 500
 
 @pre_order_bp.route('/<int:id>/status', methods=['PUT'])
 @require_auth
@@ -129,7 +233,7 @@ def update_status(id):
         db.session.commit()
         return jsonify(order.to_dict())
     
-    return jsonify({'message': 'Status required'}), 400
+    return jsonify({'message': 'Status é obrigatório'}), 400
 
 @pre_order_bp.route('/<int:id>/checkout', methods=['POST'])
 @require_auth
@@ -246,12 +350,12 @@ def production_summary():
     """
     date_str = request.args.get('date')
     if not date_str:
-        return jsonify({'message': 'Date is required (YYYY-MM-DD)'}), 400
+        return jsonify({'message': 'Data é obrigatória (YYYY-MM-DD)'}), 400
         
     try:
         target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
-        return jsonify({'message': 'Invalid date format'}), 400
+        return jsonify({'message': 'Formato de data inválido'}), 400
 
     # Query all active items for that date (exclude CANCELED)
     # Join PreOrder to filter by date and status
@@ -272,35 +376,55 @@ def production_summary():
             by_product[pid] = {
                 'product_id': pid,
                 'name': item.product.name,
-                'unit': item.product.unit,
+                'category_id': item.product.category_id,
+                'category_name': item.product.category.name if item.product.category else 'Sem Categoria',
+                'unit': item.product.unit.value,
                 'total_qty': 0,
-                'total_weight': 0.0
+                'total_weight': 0.0,
+                'breakdown': {} # Hour -> {qty, weight}
             }
             
-        by_product[pid]['total_qty'] += item.qty
+        prod_entry = by_product[pid]
+        prod_entry['total_qty'] += item.qty
         if item.desired_weight_kg:
-             by_product[pid]['total_weight'] += item.desired_weight_kg
+             prod_entry['total_weight'] += float(item.desired_weight_kg)
              
-        # By Time (Hourly buckets)
+        # Add to product schedule breakdown
         hour = order.pickup_datetime.hour
-        time_key = f"{hour:02d}:00 - {hour+1:02d}:00"
+        time_key = f"{hour:02d}:00"
         
-        if time_key not in by_time:
-            by_time[time_key] = []
+        if time_key not in prod_entry['breakdown']:
+            prod_entry['breakdown'][time_key] = {'time': time_key, 'qty': 0, 'weight': 0.0}
+        
+        prod_entry['breakdown'][time_key]['qty'] += item.qty
+        if item.desired_weight_kg:
+            prod_entry['breakdown'][time_key]['weight'] += float(item.desired_weight_kg)
+             
+        # By Time (Hourly buckets) - Keeping existing logic for backward compat/other views
+        time_key_range = f"{hour:02d}:00 - {hour+1:02d}:00"
+        
+        if time_key_range not in by_time:
+            by_time[time_key_range] = []
             
         # Add basic info to time bucket
-        by_time[time_key].append({
+        by_time[time_key_range].append({
             'order_id': order.id,
             'customer': order.customer_name,
             'product': item.product.name,
             'qty': item.qty,
-            'weight': item.desired_weight_kg,
-            'unit': item.product.unit,
+            'weight': float(item.desired_weight_kg) if item.desired_weight_kg else 0.0,
+            'unit': item.product.unit.value,
             'notes': item.notes
         })
         
-    # Sort By Product (Name)
-    summary_list = sorted(by_product.values(), key=lambda x: x['name'])
+    # Sort By Product (Name) and Format Breakdown
+    summary_list = []
+    for p in sorted(by_product.values(), key=lambda x: x['name']):
+        # Convert breakdown dict to sorted list
+        schedule = sorted(p['breakdown'].values(), key=lambda x: x['time'])
+        p['schedule'] = schedule
+        del p['breakdown'] # Remove temp dict
+        summary_list.append(p)
     
     # Sort By Time
     # Convert dict to list of {time: '...', items: []} sorted by time

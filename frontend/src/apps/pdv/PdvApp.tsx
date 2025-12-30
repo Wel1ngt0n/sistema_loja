@@ -183,7 +183,7 @@ const PdvApp: React.FC = () => {
     const total = Math.max(0, subtotal - discountAmount);
 
     return (
-        <Box height="100vh" display="flex" flexDirection="column" bgcolor="#F6F7F9">
+        <Box height={{ xs: 'auto', md: '100vh' }} display="flex" flexDirection="column" bgcolor="#F6F7F9">
             {/* Header */}
             <Paper
                 elevation={2}
@@ -191,23 +191,27 @@ const PdvApp: React.FC = () => {
                     p: 1.5,
                     px: 3,
                     display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    gap: 2,
                     bgcolor: 'primary.main',
                     color: 'white',
                     borderRadius: 0,
                     zIndex: 10
                 }}
             >
-                <Box display="flex" alignItems="center" gap={2}>
-                    <Typography variant="h6" fontWeight="bold">Sistema PDV</Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>v2.0</Typography>
+                <Box display="flex" alignItems="center" gap={2} width={{ xs: '100%', sm: 'auto' }} justifyContent={{ xs: 'space-between', sm: 'flex-start' }}>
+                    <Box display="flex" alignItems="center" gap={2}>
+                        <Typography variant="h6" fontWeight="bold">Sistema PDV</Typography>
+                        <Typography variant="caption" sx={{ opacity: 0.8 }}>v2.0</Typography>
+                    </Box>
                     {selectedOrderId && (
                         <Chip label={`Pedido #${selectedOrderId}`} color="warning" size="small" onDelete={handleClearCart} />
                     )}
                 </Box>
-                <Box display="flex" alignItems="center" gap={3}>
-                    <Typography>Op: {cashierSession.user_name}</Typography>
+                <Box display="flex" alignItems="center" gap={2} flexWrap="wrap" justifyContent="center">
+                    <Typography display={{ xs: 'none', md: 'block' }}>Op: {cashierSession.user_name}</Typography>
                     <Box
                         bgcolor="primary.main"
                         px={2} py={0.5}
@@ -226,12 +230,10 @@ const PdvApp: React.FC = () => {
                         sx={{
                             fontWeight: 'bold',
                             boxShadow: 2,
-                            mr: 2,
                             '&:hover': { bgcolor: 'error.dark' }
                         }}
                         onClick={() => {
                             if (window.confirm("Deseja realmente fechar o caixa agora?")) {
-                                // For MVP we just call the API. Ideally open a modal to confirm values.
                                 api.post('/cashier/close', { end_balance: cashierSession.current_balance })
                                     .then(() => checkCashierStatus())
                                     .catch(err => alert("Erro ao fechar caixa: " + err.response?.data?.message));
@@ -239,7 +241,7 @@ const PdvApp: React.FC = () => {
                         }}
                         startIcon={<PointOfSaleIcon />}
                     >
-                        Fechar Caixa
+                        Fechar
                     </Button>
                     {(user?.is_super_admin || user?.roles.includes('ADMIN')) && (
                         <Button
@@ -247,7 +249,6 @@ const PdvApp: React.FC = () => {
                             size="small"
                             onClick={() => navigate('/admin')}
                             startIcon={<AdminPanelSettingsIcon />}
-                            sx={{ mr: 1 }}
                         >
                             Admin
                         </Button>
@@ -257,15 +258,15 @@ const PdvApp: React.FC = () => {
             </Paper>
 
             {/* Main Layout - 3 Columns */}
-            <Box flexGrow={1} p={2} overflow="hidden">
-                <Grid container spacing={2} sx={{ height: '100%' }}>
+            <Box flexGrow={1} p={2} overflow={{ xs: 'auto', md: 'hidden' }}>
+                <Grid container spacing={2} sx={{ height: { xs: 'auto', md: '100%' } }}>
                     {/* Left: Catalog */}
-                    <Grid size={5} sx={{ height: '100%' }}>
+                    <Grid size={{ xs: 12, md: 5 }} sx={{ height: { xs: '600px', md: '100%' } }}>
                         <CatalogGrid onAddProduct={handleAddProduct} />
                     </Grid>
 
                     {/* Center: Cart */}
-                    <Grid size={4} sx={{ height: '100%' }}>
+                    <Grid size={{ xs: 12, md: 4 }} sx={{ height: { xs: 'auto', md: '100%' }, minHeight: 400 }}>
                         <Cart
                             items={cartItems}
                             subtotal={subtotal}
@@ -281,7 +282,7 @@ const PdvApp: React.FC = () => {
                     </Grid>
 
                     {/* Right: Orders */}
-                    <Grid size={3} sx={{ height: '100%' }}>
+                    <Grid size={{ xs: 12, md: 3 }} sx={{ height: { xs: '400px', md: '100%' } }}>
                         <OrderQueue onSelectOrder={handleSelectOrder} />
                     </Grid>
                 </Grid>

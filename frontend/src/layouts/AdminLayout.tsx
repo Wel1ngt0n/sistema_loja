@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, Collapse, IconButton, useTheme } from '@mui/material';
+import { Box, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, AppBar, Toolbar, Typography, Collapse, IconButton, useTheme, useMediaQuery, CssBaseline } from '@mui/material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,6 +19,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import GroupIcon from '@mui/icons-material/Group';
 import SettingsIcon from '@mui/icons-material/Settings';
+import MenuIcon from '@mui/icons-material/Menu';
 
 const drawerWidth = 260;
 
@@ -34,7 +35,11 @@ const AdminLayout: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { logout, isSuperAdmin, user, hasPermission } = useAuth();
+
+    // State for mobile drawer
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     // State for collapsible groups
     const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>({
@@ -42,9 +47,19 @@ const AdminLayout: React.FC = () => {
         'Produção': true
     });
 
+    const handleDrawerToggle = () => {
+        setMobileOpen(!mobileOpen);
+    };
+
     const handleGroupClick = (text: string) => {
         setOpenGroups(prev => ({ ...prev, [text]: !prev[text] }));
     };
+
+    // Close drawer on mobile when navigating
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        if (isMobile) setMobileOpen(false);
+    }
 
     const isActive = (path?: string) => {
         if (!path) return false;
@@ -122,13 +137,11 @@ const AdminLayout: React.FC = () => {
             mb: 0.5,
         };
 
-
-
         return (
             <React.Fragment key={item.text}>
                 <ListItem disablePadding sx={{ display: 'block', px: 2 }}>
                     <ListItemButton
-                        onClick={() => isGroup ? handleGroupClick(item.text) : navigate(item.path!)}
+                        onClick={() => isGroup ? handleGroupClick(item.text) : handleNavigation(item.path!)}
                         sx={{
                             minHeight: 48,
                             justifyContent: 'initial',
@@ -167,8 +180,41 @@ const AdminLayout: React.FC = () => {
         );
     };
 
+    const drawerContent = (
+        <div>
+            <Toolbar /> {/* Spacer for AppBar */}
+            <Box sx={{ overflow: 'auto', py: 2 }}>
+                <List>
+                    {menuStructure.map(item => renderNavItem(item))}
+                </List>
+
+                <Box px={2} py={1}>
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ ml: 2, mb: 1, display: 'block', textTransform: 'uppercase' }}>
+                        Apps
+                    </Typography>
+                    {appLinks.map(app => (
+                        app.show && (
+                            <ListItemButton
+                                key={app.text}
+                                onClick={() => window.open(app.url, '_blank')}
+                                sx={{ borderRadius: 2, mb: 0.5 }}
+                            >
+                                <ListItemIcon sx={{ minWidth: 40, color: 'secondary.main' }}>
+                                    {app.icon}
+                                </ListItemIcon>
+                                <ListItemText primary={app.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 'medium' }} />
+                                <ExitToAppIcon fontSize="small" sx={{ color: 'action.disabled', fontSize: 16 }} />
+                            </ListItemButton>
+                        )
+                    ))}
+                </Box>
+            </Box>
+        </div>
+    );
+
     return (
         <Box sx={{ display: 'flex' }}>
+            <CssBaseline />
             <AppBar
                 position="fixed"
                 sx={{
@@ -179,6 +225,15 @@ const AdminLayout: React.FC = () => {
                 }}
             >
                 <Toolbar>
+                    <IconButton
+                        color="inherit"
+                        aria-label="open drawer"
+                        edge="start"
+                        onClick={handleDrawerToggle}
+                        sx={{ mr: 2, display: { md: 'none' } }}
+                    >
+                        <MenuIcon />
+                    </IconButton>
                     <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold', color: 'primary.main' }}>
                         Sistema Loja
                     </Typography>
@@ -194,50 +249,44 @@ const AdminLayout: React.FC = () => {
                 </Toolbar>
             </AppBar>
 
-            <Drawer
-                variant="permanent"
-                sx={{
-                    width: drawerWidth,
-                    flexShrink: 0,
-                    [`& .MuiDrawer-paper`]: {
-                        width: drawerWidth,
-                        boxSizing: 'border-box',
-                        borderRight: 'none',
-                        boxShadow: 3,
-                        bgcolor: '#f8f9fa' // Slightly lighter background for menu
-                    },
-                }}
+            <Box
+                component="nav"
+                sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+                aria-label="mailbox folders"
             >
-                <Toolbar /> {/* Spacer for AppBar */}
-                <Box sx={{ overflow: 'auto', py: 2 }}>
-                    <List>
-                        {menuStructure.map(item => renderNavItem(item))}
-                    </List>
+                {/* Mobile Drawer (Temporary) */}
+                <Drawer
+                    variant="temporary"
+                    open={mobileOpen}
+                    onClose={handleDrawerToggle}
+                    ModalProps={{
+                        keepMounted: true, // Better open performance on mobile.
+                    }}
+                    sx={{
+                        display: { xs: 'block', md: 'none' },
+                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+                    }}
+                >
+                    {drawerContent}
+                </Drawer>
 
-                    <Box px={2} py={1}>
-                        <Typography variant="caption" fontWeight="bold" color="text.secondary" sx={{ ml: 2, mb: 1, display: 'block', textTransform: 'uppercase' }}>
-                            Apps
-                        </Typography>
-                        {appLinks.map(app => (
-                            app.show && (
-                                <ListItemButton
-                                    key={app.text}
-                                    onClick={() => window.open(app.url, '_blank')}
-                                    sx={{ borderRadius: 2, mb: 0.5 }}
-                                >
-                                    <ListItemIcon sx={{ minWidth: 40, color: 'secondary.main' }}>
-                                        {app.icon}
-                                    </ListItemIcon>
-                                    <ListItemText primary={app.text} primaryTypographyProps={{ fontSize: '0.9rem', fontWeight: 'medium' }} />
-                                    <ExitToAppIcon fontSize="small" sx={{ color: 'action.disabled', fontSize: 16 }} />
-                                </ListItemButton>
-                            )
-                        ))}
-                    </Box>
-                </Box>
-            </Drawer>
+                {/* Desktop Drawer (Permanent) */}
+                <Drawer
+                    variant="permanent"
+                    sx={{
+                        display: { xs: 'none', md: 'block' },
+                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth, bgcolor: '#f8f9fa', borderRight: 'none', boxShadow: 3 },
+                    }}
+                    open
+                >
+                    {drawerContent}
+                </Drawer>
+            </Box>
 
-            <Box component="main" sx={{ flexGrow: 1, p: 3, bgcolor: '#f4f6f8', minHeight: '100vh' }}>
+            <Box
+                component="main"
+                sx={{ flexGrow: 1, p: 3, bgcolor: '#f4f6f8', minHeight: '100vh' }}
+            >
                 <Toolbar />
                 <Outlet />
             </Box>

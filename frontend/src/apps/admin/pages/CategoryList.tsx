@@ -82,8 +82,8 @@ const CategoryList: React.FC = () => {
                 <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()}>Nova Categoria</Button>
             </Box>
 
-            <TableContainer component={Paper}>
-                <Table>
+            <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+                <Table sx={{ minWidth: 500 }}>
                     <TableHead>
                         <TableRow>
                             <TableCell>ID</TableCell>
@@ -101,8 +101,10 @@ const CategoryList: React.FC = () => {
                                 <TableCell>{row.sort_order}</TableCell>
                                 <TableCell>{row.active ? 'Sim' : 'Não'}</TableCell>
                                 <TableCell align="right">
-                                    <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
-                                    <IconButton color="error" onClick={() => handleDelete(row.id)}><DeleteIcon /></IconButton>
+                                    <Box display="flex" justifyContent="flex-end">
+                                        <IconButton color="primary" onClick={() => handleOpen(row)}><EditIcon /></IconButton>
+                                        <IconButton color="error" onClick={() => handleDelete(row.id)}><DeleteIcon /></IconButton>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ))}
