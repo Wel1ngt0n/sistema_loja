@@ -62,8 +62,9 @@ def backup_restore_menu():
             print(f"\nGerando backup em '{backup_file}'...")
             try:
                 # O comando pg_dump roda dentro do container e o output é redirecionado para arquivo local
-                # Ajuste o usuario/banco se mudou no docker-compose
-                cmd = f"docker exec -t {db_container} pg_dump -U user -d loja --clean --if-exists"
+                # -i: interactive (sem tty)
+                # -e PGPASSWORD=...: define senha para não pedir prompt
+                cmd = f"docker exec -i -e PGPASSWORD=password {db_container} pg_dump -U user -d loja_db --clean --if-exists"
                 
                 with open(backup_file, "w") as outfile:
                     subprocess.run(cmd, stdout=outfile, shell=True, check=True)
@@ -83,7 +84,7 @@ def backup_restore_menu():
                 print("Restaurando dados...")
                 try:
                     # Lê o arquivo local e envia para o psql dentro do container
-                    cmd = f"docker exec -i {db_container} psql -U user -d loja"
+                    cmd = f"docker exec -i -e PGPASSWORD=password {db_container} psql -U user -d loja_db"
                     
                     with open(backup_file, "r") as infile:
                         subprocess.run(cmd, stdin=infile, shell=True, check=True)
