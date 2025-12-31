@@ -144,7 +144,7 @@ def main_menu():
             print("\nIniciando Túnel Cloudflare (Aleatório)...")
             print("Certifique-se que o sistema já está rodando.")
             try:
-                subprocess.run("cloudflared.exe tunnel --url http://localhost:80", shell=True)
+                subprocess.run("cloudflared.exe tunnel --url http://127.0.0.1:5173", shell=True)
             except KeyboardInterrupt:
                 print("\nTúnel encerrado.")
 
